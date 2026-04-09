@@ -1,0 +1,314 @@
+import React, { useState } from 'react';
+import { 
+  Film, 
+  Play, 
+  Clock, 
+  CheckCheck, 
+  MoreVertical, 
+  Plus, 
+  HardDrive, 
+  Cpu,
+  Search,
+  Filter,
+  Camera,
+  Layers,
+  CheckCircle,
+  Trash2,
+  ArrowUp
+} from 'lucide-react';
+import { useData } from '../context/DataContext';
+import Modal from './ui/Modal';
+import { Project } from '../types';
+
+export default function Production() {
+  const { projects, addProject, updateProjectProgress, deleteProject } = useData();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [newProject, setNewProject] = useState<Omit<Project, 'id'>>({
+    title: '',
+    status: 'Roteirização',
+    progress: 0,
+    team: ['https://picsum.photos/seed/user1/200/200'],
+    deadline: '',
+    priority: 'Média'
+  });
+
+  const filteredProjects = projects.filter(p => 
+    p.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const stages = [
+    { label: 'Roteiro', icon: Film, count: projects.filter(p => p.status === 'Roteirização').length, color: 'text-blue-400' },
+    { label: 'Captação', icon: Play, count: projects.filter(p => p.status === 'Captação').length, color: 'text-purple-400' },
+    { label: 'Edição', icon: Clock, count: projects.filter(p => p.status === 'Em Edição').length, color: 'text-amber-400' },
+    { label: 'Finalizado', icon: CheckCheck, count: projects.filter(p => p.status === 'Finalizado').length, color: 'text-emerald-400' },
+  ];
+
+  const handleAddProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    addProject(newProject);
+    setIsModalOpen(false);
+    setNewProject({ title: '', status: 'Roteirização', progress: 0, team: ['https://picsum.photos/seed/user1/200/200'], deadline: '', priority: 'Média' });
+  };
+
+  return (
+    <div className="space-y-12">
+      {/* Header */}
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <p className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Pipeline de Conteúdo</p>
+          <h2 className="text-4xl font-headline font-bold text-white uppercase tracking-tight">Produção Audiovisual</h2>
+        </div>
+        <div className="flex gap-3">
+          <div className="relative group">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-white transition-colors" />
+            <input 
+              className="bg-surface-low border-b border-white/20 focus:border-white focus:ring-0 text-sm py-3 pl-12 pr-6 rounded-t-lg w-full md:w-64 transition-all outline-none" 
+              placeholder="Buscar projetos..." 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="px-6 py-2.5 rounded-full bg-white text-on-primary font-label text-xs font-bold uppercase tracking-wider signature-glow hover:scale-95 transition-transform flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Novo Projeto
+          </button>
+        </div>
+      </section>
+
+      {/* Stage Overview */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stages.map((stage, i) => (
+          <div key={i} className="glass-panel p-6 rounded-xl ghost-border hover:bg-white/5 transition-colors group">
+            <div className="flex justify-between items-start mb-4">
+              <div className={`p-3 rounded-lg bg-white/5 ${stage.color}`}>
+                <stage.icon size={24} />
+              </div>
+              <span className="text-2xl font-headline font-bold text-white">{stage.count.toString().padStart(2, '0')}</span>
+            </div>
+            <p className="text-xs font-label uppercase tracking-widest text-on-surface-variant font-bold">{stage.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Projects Table */}
+      <section className="glass-panel rounded-2xl ghost-border overflow-hidden">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center">
+          <h3 className="font-headline font-bold text-white uppercase tracking-tight">Projetos Ativos</h3>
+          <button 
+            onClick={() => alert('Filtros de produção em desenvolvimento.')}
+            className="text-on-surface-variant hover:text-white transition-colors"
+          >
+            <Filter size={20} />
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-white/5">
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">Projeto</th>
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">Status</th>
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">Progresso</th>
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">Equipe</th>
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant">Prazo</th>
+                <th className="px-6 py-4 text-[10px] font-label uppercase tracking-widest text-on-surface-variant"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredProjects.map((project) => (
+                <tr key={project.id} className="hover:bg-white/5 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="space-y-1 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-surface-high flex items-center justify-center ghost-border">
+                        <Play size={16} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white group-hover:text-glow transition-all">{project.title}</p>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                          project.priority === 'Alta' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          project.priority === 'Média' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                          'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        }`}>
+                          {project.priority}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs text-on-surface-variant">{project.status}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="w-32 space-y-2">
+                      <div className="flex justify-between text-[10px] font-mono text-on-surface-variant">
+                        <span>{project.progress}%</span>
+                      </div>
+                      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-white rounded-full pill-glow transition-all duration-500" 
+                          style={{ width: `${project.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex -space-x-2">
+                      {project.team.map((img, i) => (
+                        <img key={i} src={img} className="w-8 h-8 rounded-full border-2 border-surface" alt="Team member" referrerPolicy="no-referrer" />
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-mono text-on-surface-variant">{project.deadline}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => updateProjectProgress(project.id, Math.min(100, project.progress + 5))}
+                        className="p-2 rounded-lg bg-white/5 text-on-surface-variant hover:text-white hover:bg-white/10 transition-all"
+                        title="Incrementar Progresso"
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button 
+                        onClick={() => deleteProject(project.id)}
+                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                        title="Excluir Projeto"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <button className="p-2 text-on-surface-variant hover:text-white transition-colors">
+                        <MoreVertical size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Hardware & Resources */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-panel p-8 rounded-lg ghost-border space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded bg-white/5 text-white">
+              <HardDrive size={20} />
+            </div>
+            <h3 className="font-headline font-bold text-white uppercase tracking-tight">Status de Armazenamento</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-on-surface-variant">Servidor Principal (NAS)</span>
+                <span className="text-white font-mono">12.4TB / 16TB</span>
+              </div>
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-400 rounded-full" style={{ width: '78%' }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-on-surface-variant">Cloud Backup (S3)</span>
+                <span className="text-white font-mono">4.2TB / 10TB</span>
+              </div>
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-purple-400 rounded-full" style={{ width: '42%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-panel p-8 rounded-lg ghost-border bg-gradient-to-br from-surface to-surface-low">
+          <div className="flex justify-between items-start mb-12">
+            <div>
+              <h4 className="font-headline text-xl font-bold text-white">Render Farm Status</h4>
+              <p className="text-xs text-on-surface-variant font-body">Omega Cloud Engine</p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center ghost-border">
+              <CheckCircle size={20} className="text-emerald-400" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+              <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Node 01</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-sm font-bold text-white">Online</span>
+              </div>
+            </div>
+            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+              <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Node 02</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-sm font-bold text-white">Online</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal Novo Projeto */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Novo Projeto">
+        <form onSubmit={handleAddProject} className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Título do Projeto</label>
+            <input 
+              required
+              type="text" 
+              value={newProject.title}
+              onChange={e => setNewProject({...newProject, title: e.target.value})}
+              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+              placeholder="Ex: Campanha de Verão"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Status Inicial</label>
+              <select 
+                value={newProject.status}
+                onChange={e => setNewProject({...newProject, status: e.target.value})}
+                className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20 appearance-none"
+              >
+                <option value="Roteirização">Roteirização</option>
+                <option value="Captação">Captação</option>
+                <option value="Em Edição">Em Edição</option>
+                <option value="Finalizado">Finalizado</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Prioridade</label>
+              <select 
+                value={newProject.priority}
+                onChange={e => setNewProject({...newProject, priority: e.target.value as Project['priority']})}
+                className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20 appearance-none"
+              >
+                <option value="Alta">Alta</option>
+                <option value="Média">Média</option>
+                <option value="Baixa">Baixa</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Prazo de Entrega</label>
+            <input 
+              required
+              type="text" 
+              value={newProject.deadline}
+              onChange={e => setNewProject({...newProject, deadline: e.target.value})}
+              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+              placeholder="Ex: 15 Nov"
+            />
+          </div>
+          <button type="submit" className="w-full py-4 rounded-xl bg-white text-on-primary font-bold uppercase tracking-widest signature-glow hover:scale-[0.98] transition-transform mt-4">
+            Criar Projeto
+          </button>
+        </form>
+      </Modal>
+    </div>
+  );
+}
