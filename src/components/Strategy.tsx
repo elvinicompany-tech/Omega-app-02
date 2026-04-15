@@ -28,9 +28,11 @@ export default function Strategy() {
 
   const [newStrategy, setNewStrategy] = useState<Omit<StrategyItem, 'id'>>({
     title: '',
+    client: '',
     status: 'Em Execução',
     progress: 0,
-    priority: 'Alta'
+    priority: 'Alta',
+    tags: []
   });
 
   const [newOKR, setNewOKR] = useState<Omit<OKR, 'id'>>({
@@ -48,7 +50,7 @@ export default function Strategy() {
     e.preventDefault();
     if (modalType === 'strategy') {
       addStrategy(newStrategy);
-      setNewStrategy({ title: '', status: 'Em Execução', progress: 0, priority: 'Alta' });
+      setNewStrategy({ title: '', client: '', status: 'Em Execução', progress: 0, priority: 'Alta', tags: [] });
     } else {
       addOKR(newOKR);
       setNewOKR({ title: '', progress: 0, target: '', category: 'Crescimento' });

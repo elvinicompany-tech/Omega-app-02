@@ -36,6 +36,7 @@ import {
   MessageSquare, 
   CheckCircle2, 
   Lock, 
+  ShieldCheck,
   Send, 
   Upload, 
   ChevronsLeft, 
@@ -124,6 +125,9 @@ const Icons = {
   ChevronRightSmall: ChevronRight
 };
 
+import { useData } from '../context/DataContext';
+import { UserRole } from '../types';
+
 interface LayoutProps {
   children: React.ReactNode;
   activeView: string;
@@ -131,11 +135,13 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeView, setActiveView }: LayoutProps) {
+  const { userRole, setUserRole } = useData();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
-    { id: 'crm', label: 'CRM', icon: Icons.Store },
+    { id: 'sales', label: 'Vendas', icon: Icons.Store },
+    { id: 'capture', label: 'Captação', icon: Icons.Camera },
     { id: 'production', label: 'Produção', icon: Icons.Movie },
     { id: 'results', label: 'Resultados', icon: Icons.Analytics },
     { id: 'clients', label: 'Clientes', icon: Icons.Groups },
@@ -147,7 +153,7 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
       {/* Sidebar (Desktop) */}
       <aside className="hidden lg:flex flex-col h-screen w-72 bg-surface py-8 px-6 gap-4 sticky top-0 rounded-r-[2rem] shadow-2xl shadow-white/5 z-40">
         <div className="flex flex-col mb-8 px-2">
-          <span className="text-white uppercase tracking-[0.2em] font-label text-[10px] mb-6">Obsidian Agency</span>
+          <span className="text-white uppercase tracking-[0.2em] font-label text-[10px] mb-6">ASSESSORIA OMEGA</span>
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-surface-highest overflow-hidden ghost-border">
               <img 
@@ -157,7 +163,7 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
               />
             </div>
             <div className="flex flex-col">
-              <span className="text-white font-bold leading-tight">Obsidian Agency</span>
+              <span className="text-white font-bold leading-tight">ASSESSORIA OMEGA</span>
               <span className="text-neutral-500 text-xs">Lead Strategist</span>
             </div>
           </div>
@@ -196,7 +202,7 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
             >
               <Icons.Menu size={20} />
             </button>
-            <h1 className="text-xl font-bold tracking-tighter text-white font-headline uppercase">OMNI ARCHIVE</h1>
+            <h1 className="text-xl font-bold tracking-tighter text-white font-headline uppercase">ASSESSORIA OMEGA</h1>
           </div>
           
           <div className="flex items-center gap-6">
@@ -222,6 +228,20 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
             </div>
             
             <div className="flex items-center gap-4">
+              <div className="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+                <ShieldCheck size={14} className={userRole === 'Colaborador' ? 'text-neutral-500' : 'text-emerald-400'} />
+                <select 
+                  value={userRole}
+                  onChange={(e) => setUserRole(e.target.value as UserRole)}
+                  className="bg-transparent text-[10px] font-bold uppercase tracking-widest text-white focus:outline-none cursor-pointer appearance-none pr-4"
+                >
+                  <option value="CEO" className="bg-surface text-white">CEO</option>
+                  <option value="RH" className="bg-surface text-white">RH</option>
+                  <option value="Vendedor" className="bg-surface text-white">Vendedor</option>
+                  <option value="Colaborador" className="bg-surface text-white">Colaborador</option>
+                </select>
+                <ChevronDown size={10} className="text-on-surface-variant -ml-3 pointer-events-none" />
+              </div>
               <button className="text-white p-2 hover:bg-white/5 rounded-full transition-colors">
                 <Icons.Notifications size={20} />
               </button>
@@ -291,7 +311,7 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
               className="fixed top-0 left-0 bottom-0 w-72 bg-surface z-[70] lg:hidden p-8 flex flex-col gap-8 rounded-r-[2rem]"
             >
               <div className="flex justify-between items-center">
-                <span className="text-white font-headline font-bold text-xl uppercase tracking-tighter">OMNI ARCHIVE</span>
+                <span className="text-white font-headline font-bold text-xl uppercase tracking-tighter">ASSESSORIA OMEGA</span>
                 <button onClick={() => setIsSidebarOpen(false)} className="text-white">
                   <Icons.Plus className="rotate-45" />
                 </button>

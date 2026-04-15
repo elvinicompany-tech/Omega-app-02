@@ -1,5 +1,5 @@
 {
-  "name": "OMEGA | Obsidian Dashboard",
+  "name": "ASSESSORIA OMEGA",
   "description": "A high-end, dark-themed analytical dashboard and CRM system designed with the Obsidian Monolith aesthetic.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["geolocation"]
 }

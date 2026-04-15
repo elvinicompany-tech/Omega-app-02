@@ -36,18 +36,77 @@ export interface Project {
   team: string[];
   deadline: string;
   priority: 'Alta' | 'Média' | 'Baixa';
+  type: 'Plano' | 'Único';
+  value?: string; // For one-time projects
+  script?: string;
+  isEditing?: boolean;
+  rawMaterialLink?: string;
+  referenceLink?: string;
+  insertsLink?: string;
+  responsible?: string;
+  description?: string;
+  caption?: string;
+  completedAt?: string; // ISO string
+}
+
+export type UserRole = 'CEO' | 'RH' | 'Colaborador' | 'Vendedor';
+
+export interface Sale {
+  id: string;
+  clientId: string;
+  clientName: string;
+  product: string;
+  value: number;
+  discount: boolean;
+  discountValue?: number;
+  sellerId: string;
+  sellerName: string;
+  date: string; // ISO string
+}
+
+export interface Seller {
+  id: string;
+  name: string;
+  role: string;
+  avatar?: string;
+}
+
+export interface Goal {
+  id: string;
+  month: string; // "YYYY-MM"
+  targetValue: number;
+}
+
+export interface Note {
+  id: string;
+  userId: string;
+  content: string;
+  updatedAt: string;
 }
 
 export interface Client {
   id: string;
   name: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  instagram?: string;
   industry: string;
   status: 'Ativo' | 'Onboarding' | 'Pausado';
-  revenue: string;
+  revenue: string; // This will be the monthly investment
   location: string;
   contact: string;
   since: string;
+  createdAt: string; // ISO string for tracking new clients
   logo: string;
+  driveFolderId?: string;
+  contractLink?: string;
+  planDetails?: {
+    included: string;
+    totalEdits: number;
+    totalCaptures: number;
+    workScope: string;
+  };
 }
 
 export interface StrategyItem {
@@ -72,4 +131,22 @@ export interface Step {
   action: string;
   due: string;
   priority: 'Urgente' | 'Alta' | 'Média' | 'Baixa';
+}
+
+export interface Capture {
+  id: string;
+  title: string;
+  location: string;
+  lat?: number;
+  lng?: number;
+  clientContact: string;
+  date: string; // Display date (e.g. "04 Nov")
+  time: string; // Display time (e.g. "09:00")
+  startDateTime: string; // ISO string for calendar sync
+  endDateTime: string; // ISO string for calendar sync
+  status: 'Ativo Agora' | 'Confirmado' | 'Pendente';
+  type: string;
+  img?: string;
+  driveFolderId?: string;
+  script?: string;
 }
