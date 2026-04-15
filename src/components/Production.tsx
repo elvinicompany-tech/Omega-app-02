@@ -22,18 +22,30 @@ import {
   Calendar as CalendarIcon,
   Video,
   Scissors,
-  Save
+  Save,
+  Target,
+  CheckCircle2,
+  ListTodo,
+  Send,
+  AlertCircle
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import Modal from './ui/Modal';
 import { Project } from '../types';
+import { parse, isBefore, addDays, isSameDay, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function Production() {
-  const { projects, addProject, updateProjectProgress, updateProject, deleteProject } = useData();
+  const { 
+    projects, addProject, updateProjectProgress, updateProject, deleteProject, 
+    missions, addMission, toggleMission, deleteMission,
+    showToast 
+  } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [newMission, setNewMission] = useState({ title: '', description: '' });
   const [newProject, setNewProject] = useState<Omit<Project, 'id'>>({
     title: '',
     status: 'Roteirização',
@@ -56,6 +68,27 @@ export default function Production() {
   const filteredProjects = projects.filter(p => 
     p.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getDeadlineStatus = (deadlineStr: string, status: string) => {
+    if (status === 'Finalizado') return 'finished';
+    
+    try {
+      // Try to parse "DD MMM" format (e.g., "15 Nov")
+      const currentYear = new Date().getFullYear();
+      const deadlineDate = parse(`${deadlineStr} ${currentYear}`, 'd MMM yyyy', new Date(), { locale: ptBR });
+      
+      if (!isValid(deadlineDate)) return 'normal';
+
+      const today = new Date();
+      const nearDeadline = addDays(today, 2); // 2 days warning
+
+      if (isBefore(deadlineDate, today) || isSameDay(deadlineDate, today)) return 'urgent';
+      if (isBefore(deadlineDate, nearDeadline)) return 'near';
+    } catch (e) {
+      return 'normal';
+    }
+    return 'normal';
+  };
 
   const stages = [
     { label: 'Roteiro', icon: Film, count: projects.filter(p => p.status === 'Roteirização').length, color: 'text-blue-400' },
@@ -151,7 +184,7 @@ export default function Production() {
         <div className="p-6 border-b border-white/10 flex justify-between items-center">
           <h3 className="font-headline font-bold text-white uppercase tracking-tight">Projetos Ativos</h3>
           <button 
-            onClick={() => alert('Filtros de produção em desenvolvimento.')}
+            onClick={() => showToast('Filtros de produção em desenvolvimento.', 'info')}
             className="text-on-surface-variant hover:text-white transition-colors"
           >
             <Filter size={20} />
@@ -170,78 +203,113 @@ export default function Production() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filteredProjects.map((project) => (
-                <tr 
-                  key={project.id} 
-                  className="hover:bg-white/5 transition-colors group cursor-pointer"
-                  onClick={() => openDetails(project)}
-                >
-                  <td className="px-6 py-4">
-                    <div className="space-y-1 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-surface-high flex items-center justify-center ghost-border">
-                        <Play size={16} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white group-hover:text-glow transition-all">{project.title}</p>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                          project.priority === 'Alta' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                          project.priority === 'Média' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                          'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              {filteredProjects.map((project) => {
+                const deadlineStatus = getDeadlineStatus(project.deadline, project.status);
+                const isUrgent = deadlineStatus === 'urgent' || deadlineStatus === 'near';
+                const isFinished = deadlineStatus === 'finished';
+
+                return (
+                  <tr 
+                    key={project.id} 
+                    className={`hover:bg-white/5 transition-colors group cursor-pointer border-l-4 ${
+                      isFinished ? 'border-emerald-500 bg-emerald-500/5' : 
+                      isUrgent ? 'border-red-500 bg-red-500/5' : 
+                      'border-transparent'
+                    }`}
+                    onClick={() => openDetails(project)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="space-y-1 flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ghost-border ${
+                          isFinished ? 'bg-emerald-500/20 text-emerald-400' :
+                          isUrgent ? 'bg-red-500/20 text-red-400' :
+                          'bg-surface-high text-white'
                         }`}>
-                          {project.priority}
-                        </span>
+                          {isFinished ? <CheckCheck size={16} /> : <Play size={16} />}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold group-hover:text-glow transition-all ${
+                            isFinished ? 'text-emerald-400' : 
+                            isUrgent ? 'text-red-400' : 
+                            'text-white'
+                          }`}>
+                            {project.title}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                              project.priority === 'Alta' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                              project.priority === 'Média' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                              'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            }`}>
+                              {project.priority}
+                            </span>
+                            {isUrgent && (
+                              <span className="flex items-center gap-1 text-[10px] text-red-400 font-bold animate-pulse">
+                                <AlertCircle size={10} /> PRAZO CRÍTICO
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs text-on-surface-variant">{project.status}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="w-32 space-y-2">
-                      <div className="flex justify-between text-[10px] font-mono text-on-surface-variant">
-                        <span>{project.progress}%</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-bold ${isFinished ? 'text-emerald-400' : isUrgent ? 'text-red-400' : 'text-on-surface-variant'}`}>
+                        {project.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="w-32 space-y-2">
+                        <div className="flex justify-between text-[10px] font-mono text-on-surface-variant">
+                          <span className={isFinished ? 'text-emerald-400' : isUrgent ? 'text-red-400' : ''}>{project.progress}%</span>
+                        </div>
+                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full pill-glow transition-all duration-500 ${
+                              isFinished ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 
+                              isUrgent ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 
+                              'bg-white'
+                            }`} 
+                            style={{ width: `${project.progress}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-white rounded-full pill-glow transition-all duration-500" 
-                          style={{ width: `${project.progress}%` }}
-                        />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex -space-x-2">
+                        {project.team.map((img, i) => (
+                          <img key={i} src={img} className="w-8 h-8 rounded-full border-2 border-surface" alt="Team member" referrerPolicy="no-referrer" />
+                        ))}
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex -space-x-2">
-                      {project.team.map((img, i) => (
-                        <img key={i} src={img} className="w-8 h-8 rounded-full border-2 border-surface" alt="Team member" referrerPolicy="no-referrer" />
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-xs font-mono text-on-surface-variant">{project.deadline}</span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        onClick={() => updateProjectProgress(project.id, Math.min(100, project.progress + 5))}
-                        className="p-2 rounded-lg bg-white/5 text-on-surface-variant hover:text-white hover:bg-white/10 transition-all"
-                        title="Incrementar Progresso"
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button 
-                        onClick={() => deleteProject(project.id)}
-                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                        title="Excluir Projeto"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <button className="p-2 text-on-surface-variant hover:text-white transition-colors">
-                        <MoreVertical size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-xs font-mono font-bold ${isFinished ? 'text-emerald-400' : isUrgent ? 'text-red-400' : 'text-on-surface-variant'}`}>
+                        {project.deadline}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          onClick={() => updateProjectProgress(project.id, Math.min(100, project.progress + 5))}
+                          className="p-2 rounded-lg bg-white/5 text-on-surface-variant hover:text-white hover:bg-white/10 transition-all"
+                          title="Incrementar Progresso"
+                        >
+                          <ArrowUp size={16} />
+                        </button>
+                        <button 
+                          onClick={() => deleteProject(project.id)}
+                          className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                          title="Excluir Projeto"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button className="p-2 text-on-surface-variant hover:text-white transition-colors">
+                          <MoreVertical size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -250,57 +318,104 @@ export default function Production() {
       {/* Hardware & Resources */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass-panel p-8 rounded-lg ghost-border space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded bg-white/5 text-white">
-              <HardDrive size={20} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded bg-white/5 text-white">
+                <ListTodo size={20} />
+              </div>
+              <h3 className="font-headline font-bold text-white uppercase tracking-tight">Missões Adicionais</h3>
             </div>
-            <h3 className="font-headline font-bold text-white uppercase tracking-tight">Status de Armazenamento</h3>
+            <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
+              {missions.filter(m => !m.completed).length} Pendentes
+            </span>
           </div>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-on-surface-variant">Servidor Principal (NAS)</span>
-                <span className="text-white font-mono">12.4TB / 16TB</span>
+          
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            {missions.length > 0 ? missions.map((mission) => (
+              <div key={mission.id} className="group flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => toggleMission(mission.id)}
+                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${mission.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 hover:border-white/40'}`}
+                  >
+                    {mission.completed && <CheckCircle2 size={14} />}
+                  </button>
+                  <div className={mission.completed ? 'opacity-40' : ''}>
+                    <p className={`text-sm font-bold text-white ${mission.completed ? 'line-through' : ''}`}>{mission.title}</p>
+                    <p className="text-[10px] text-on-surface-variant font-medium">{mission.description}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => deleteMission(mission.id)}
+                  className="p-2 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded-lg transition-all"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-400 rounded-full" style={{ width: '78%' }} />
+            )) : (
+              <div className="text-center py-8 opacity-40">
+                <p className="text-xs italic">Nenhuma missão adicional para hoje.</p>
               </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-on-surface-variant">Cloud Backup (S3)</span>
-                <span className="text-white font-mono">4.2TB / 10TB</span>
-              </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-purple-400 rounded-full" style={{ width: '42%' }} />
-              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-white/5">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Nova missão..."
+                value={newMission.title}
+                onChange={e => setNewMission({...newMission, title: e.target.value})}
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white focus:outline-none focus:border-white/30"
+              />
+              <button 
+                onClick={() => {
+                  if (newMission.title) {
+                    addMission(newMission);
+                    setNewMission({ title: '', description: '' });
+                  }
+                }}
+                className="p-2 bg-white text-on-primary rounded-lg hover:scale-95 transition-transform"
+              >
+                <Plus size={18} />
+              </button>
             </div>
           </div>
         </div>
 
         <div className="glass-panel p-8 rounded-lg ghost-border bg-gradient-to-br from-surface to-surface-low">
-          <div className="flex justify-between items-start mb-12">
-            <div>
-              <h4 className="font-headline text-xl font-bold text-white">Render Farm Status</h4>
-              <p className="text-xs text-on-surface-variant font-body">Omega Cloud Engine</p>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded bg-white/5 text-white">
+              <HardDrive size={20} />
             </div>
-            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center ghost-border">
-              <CheckCircle size={20} className="text-emerald-400" />
-            </div>
+            <h3 className="font-headline font-bold text-white uppercase tracking-tight">Armazenamento Cloud</h3>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-              <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Node 01</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-sm font-bold text-white">Online</span>
+          <div className="space-y-6">
+            <a 
+              href="https://drive.google.com/drive/folders/1LSI7JXrsCPpPMNRqx5pzbiLSn4s9I1bm?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-6 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-between group hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                  <HardDrive size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Google Drive Business</p>
+                  <p className="text-[10px] text-on-surface-variant font-medium">Conectado: omega-drive@gmail.com</p>
+                </div>
               </div>
-            </div>
-            <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-              <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant mb-1">Node 02</p>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-sm font-bold text-white">Online</span>
+              <ExternalLink size={18} className="text-on-surface-variant group-hover:text-white transition-colors" />
+            </a>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                <span>Espaço Utilizado</span>
+                <span className="text-white">1.2TB / 5TB</span>
+              </div>
+              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-400 rounded-full shadow-[0_0_10px_rgba(96,165,250,0.5)]" style={{ width: '24%' }} />
               </div>
             </div>
           </div>
@@ -367,6 +482,24 @@ export default function Production() {
               onChange={e => setNewProject({...newProject, responsible: e.target.value})}
               className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
               placeholder="Ex: João Silva"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Roteiro / Script</label>
+            <textarea 
+              value={newProject.script}
+              onChange={e => setNewProject({...newProject, script: e.target.value})}
+              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20 h-24 resize-none"
+              placeholder="Cole o roteiro inicial aqui..."
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Legenda / Copy</label>
+            <textarea 
+              value={newProject.caption}
+              onChange={e => setNewProject({...newProject, caption: e.target.value})}
+              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20 h-24 resize-none"
+              placeholder="Escreva a legenda inicial aqui..."
             />
           </div>
           <button type="submit" className="w-full py-4 rounded-xl bg-white text-on-primary font-bold uppercase tracking-widest signature-glow hover:scale-[0.98] transition-transform mt-4">
@@ -452,6 +585,20 @@ export default function Production() {
                   </div>
 
                   <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Status</label>
+                    <select 
+                      value={editForm.status}
+                      onChange={e => setEditForm({...editForm, status: e.target.value})}
+                      className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/20 appearance-none"
+                    >
+                      <option value="Roteirização">Roteirização</option>
+                      <option value="Captação">Captação</option>
+                      <option value="Em Edição">Em Edição</option>
+                      <option value="Finalizado">Finalizado</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Prioridade</label>
                     <select 
                       value={editForm.priority}
@@ -498,6 +645,30 @@ export default function Production() {
                       className="w-full accent-white"
                     />
                   </div>
+
+                  {editForm.status === 'Em Edição' && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const updated = {
+                          ...editForm, 
+                          status: 'Finalizado', 
+                          progress: 100,
+                          isEditing: false,
+                          completedAt: new Date().toISOString()
+                        };
+                        setEditForm(updated);
+                        // Save immediately to ensure it works
+                        if (selectedProject) {
+                          updateProject(selectedProject.id, updated);
+                          setIsDetailsModalOpen(false);
+                        }
+                      }}
+                      className="w-full py-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
+                    >
+                      <CheckCircle2 size={16} /> Finalizar Edição
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -597,6 +768,22 @@ export default function Production() {
                         onChange={e => setEditForm({...editForm, insertsLink: e.target.value})}
                         className="w-full bg-surface-highest ghost-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-white/20"
                         placeholder="Link dos inserts"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t border-white/5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-2">
+                      <CheckCircle2 size={12} /> Link do Vídeo Finalizado
+                    </label>
+                    <div className="relative">
+                      <Send size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-emerald-400" />
+                      <input 
+                        type="text" 
+                        value={editForm.editedVideoLink || ''}
+                        onChange={e => setEditForm({...editForm, editedVideoLink: e.target.value})}
+                        className="w-full bg-emerald-500/5 border border-emerald-500/20 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500/40"
+                        placeholder="Link do vídeo finalizado (Google Drive)"
                       />
                     </div>
                   </div>

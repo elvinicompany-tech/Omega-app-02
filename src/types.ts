@@ -47,6 +47,40 @@ export interface Project {
   description?: string;
   caption?: string;
   completedAt?: string; // ISO string
+  editedVideoLink?: string;
+}
+
+export interface ClientMetricRecord {
+  id: string;
+  clientId: string;
+  date: string; // ISO string (e.g., start of the week)
+  periodType: 'weekly' | 'monthly';
+  metrics: {
+    conversionRate: number;
+    viewRate: number;
+    conversationsStarted: number;
+    cpv: number;
+    cpm: number;
+  };
+  optimizationsDone: string;
+  optimizationsDoing: string;
+  optimizationsToNext: string;
+  campaigns: {
+    name: string;
+    spend: number;
+    leads: number;
+    cpa: number;
+    roas: number;
+  }[];
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  assignedTo?: string;
+  createdAt: string;
 }
 
 export type UserRole = 'CEO' | 'RH' | 'Colaborador' | 'Vendedor';
@@ -74,7 +108,8 @@ export interface Seller {
 export interface Goal {
   id: string;
   month: string; // "YYYY-MM"
-  targetValue: number;
+  targetValue: number; // New sales target
+  renewalTarget: number; // Renewal target
 }
 
 export interface Note {
@@ -99,14 +134,36 @@ export interface Client {
   since: string;
   createdAt: string; // ISO string for tracking new clients
   logo: string;
+  website?: string;
   driveFolderId?: string;
   contractLink?: string;
+  managerId?: string;
+  strategyLink?: string;
+  healthStatus?: 'green' | 'yellow' | 'red';
+  lastRenewalMonth?: string; // "YYYY-MM"
+  confidentialData?: {
+    emails?: string;
+    passwords?: string;
+    other?: string;
+  };
   planDetails?: {
     included: string;
     totalEdits: number;
     totalCaptures: number;
     workScope: string;
   };
+}
+
+export interface ManagerTask {
+  id: string;
+  clientId: string;
+  title: string;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  daysOfWeek?: number[]; // 0-6 for weekly
+  interval?: number; // for custom (every X days)
+  lastCompleted?: string; // ISO date
+  nextOccurrence: string; // ISO date
+  completed: boolean;
 }
 
 export interface StrategyItem {

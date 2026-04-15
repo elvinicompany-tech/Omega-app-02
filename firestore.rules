@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (auth.uid)
+    // Fields:
+    //   - email: string (required)
+    //   - name: string
+    //   - role: string (required, enum: CEO, RH, Colaborador, Vendedor)
+    //
+    // Collection: clients
+    // Fields:
+    //   - name: string (required)
+    //   - status: string (required)
+    //   - managerId: string (UID of the assigned manager)
+    //   - confidentialData: map (PII - restricted access)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isCEO() {
+      return isAuthenticated() && 
+        (getUserData().role == 'CEO' || 
+         (request.auth.token.email == "viniciusbarbosasampaio71@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function isRH() {
+      return isAuthenticated() && getUserData().role == 'RH';
+    }
+    
+    function isManager(clientId) {
+      return isAuthenticated() && (isCEO() || resource.data.managerId == request.auth.uid);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role']) &&
+             data.role in ['CEO', 'RH', 'Colaborador', 'Vendedor'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUser(request.resource.data) && request.resource.data.role != 'CEO';
+      allow update: if isAuthenticated() && request.auth.uid == userId && request.resource.data.role == resource.data.role;
+      allow write: if isCEO();
+    }
+
+    match /clients/{clientId} {
+      // PII Protection: Only CEO or assigned Manager can read client details if it contains confidentialData
+      allow read: if isAuthenticated();
+      
+      // Only CEO or RH can create/delete clients
+      allow create: if isCEO() || isRH();
+      allow delete: if isCEO();
+      
+      // Updates: CEO/RH can update everything. Manager can update non-confidential fields.
+      allow update: if isCEO() || isRH() || (isManager(clientId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['confidentialData']));
+    }
+
+    match /sales/{saleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isCEO();
+    }
+
+    match /managerTasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isCEO() || isAuthenticated();
+    }
+  }
+}

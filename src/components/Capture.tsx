@@ -27,6 +27,18 @@ import { useData } from '../context/DataContext';
 import Modal from './ui/Modal';
 import { Capture } from '../types';
 import GoogleMapReact from 'google-map-react';
+import usePlacesAutocomplete, {
+  getGeocode,
+  getLatLng,
+} from "use-places-autocomplete";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxPopover,
+  ComboboxList,
+  ComboboxOption,
+} from "@reach/combobox";
+import "@reach/combobox/styles.css";
 import { 
   format, 
   addMonths, 
@@ -53,7 +65,7 @@ const AnyReactComponent = ({ text, lat, lng }: { text: string; lat?: number; lng
 );
 
 export default function CaptureSector() {
-  const { captures, addCapture, updateCapture, deleteCapture } = useData();
+  const { captures, addCapture, updateCapture, deleteCapture, showToast } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date(2024, 10, 1)); // Nov 2024
@@ -105,7 +117,7 @@ export default function CaptureSector() {
         const tokens = event.data.tokens;
         setGoogleTokens(tokens);
         localStorage.setItem('google_calendar_tokens', JSON.stringify(tokens));
-        alert('Conectado ao Google com sucesso!');
+        showToast('Conectado ao Google com sucesso!', 'success');
       }
     };
     window.addEventListener('message', handleMessage);
@@ -124,7 +136,7 @@ export default function CaptureSector() {
 
   const syncToGoogle = async (capture: Capture) => {
     if (!googleTokens) {
-      alert('Por favor, conecte sua conta Google primeiro.');
+      showToast('Por favor, conecte sua conta Google primeiro.', 'info');
       return;
     }
     setIsSyncing(true);
@@ -135,9 +147,9 @@ export default function CaptureSector() {
         body: JSON.stringify({ tokens: googleTokens, capture })
       });
       if (response.ok) {
-        alert('Sincronizado com Google Agenda!');
+        showToast('Sincronizado com Google Agenda!', 'success');
       } else {
-        alert('Falha na sincronização.');
+        showToast('Falha na sincronização.', 'error');
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -148,7 +160,7 @@ export default function CaptureSector() {
 
   const createDriveFolder = async (capture: Capture) => {
     if (!googleTokens) {
-      alert('Por favor, conecte sua conta Google primeiro.');
+      showToast('Por favor, conecte sua conta Google primeiro.', 'info');
       return;
     }
     setIsCreatingFolder(capture.id);
@@ -161,7 +173,7 @@ export default function CaptureSector() {
       const data = await response.json();
       if (data.success) {
         updateCapture(capture.id, { driveFolderId: data.folderId });
-        alert('Pasta criada no Google Drive!');
+        showToast('Pasta criada no Google Drive!', 'success');
       }
     } catch (error) {
       console.error('Drive error:', error);
@@ -183,7 +195,7 @@ export default function CaptureSector() {
       });
       if (response.ok) {
         updateCapture(capture.id, { driveFolderId: undefined });
-        alert('Pasta removida do Drive.');
+        showToast('Pasta removida do Drive.', 'success');
       }
     } catch (error) {
       console.error('Drive delete error:', error);
@@ -193,14 +205,33 @@ export default function CaptureSector() {
   };
 
   const handleCheckIn = (capture: Capture) => {
-    updateCapture(capture.id, { status: 'Pendente' }); // Move to finished/pending
-    alert(`Check-in realizado para ${capture.title}.`);
+    // Mark current as finished (Pendente)
+    updateCapture(capture.id, { status: 'Pendente' });
+    
+    // Find next capture for today
+    const today = new Date();
+    const next = captures.find(c => 
+      c.id !== capture.id && 
+      c.status === 'Confirmado' && 
+      isSameDay(parseISO(c.startDateTime), today)
+    );
+
+    if (next) {
+      updateCapture(next.id, { status: 'Ativo Agora' });
+      showToast(`Check-in realizado para ${capture.title}. Próxima captação: ${next.title}`, 'success');
+    } else {
+      showToast(`Check-in realizado para ${capture.title}. Não há mais captações para hoje.`, 'success');
+    }
   };
 
   const activeCapture = captures.find(c => c.status === 'Ativo Agora');
   const selectedDateCaptures = captures.filter(c => isSameDay(parseISO(c.startDateTime), selectedDate));
+  const finishedToday = captures.filter(c => 
+    c.status === 'Pendente' && 
+    isSameDay(parseISO(c.startDateTime), new Date())
+  );
   const upcomingCaptures = captures.filter(c => 
-    c.status !== 'Ativo Agora' && 
+    c.status === 'Confirmado' && 
     c.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -358,7 +389,7 @@ export default function CaptureSector() {
 
         {/* Main Content: Active Capture & List */}
         <div className="md:col-span-8 flex flex-col gap-6">
-          {activeCapture && (
+          {activeCapture ? (
             <div className="bg-surface-high rounded-2xl overflow-hidden ghost-border relative group">
               <div className="absolute top-6 right-6 z-10 flex gap-2">
                 <button 
@@ -453,9 +484,44 @@ export default function CaptureSector() {
                 </div>
               </div>
             </div>
+          ) : (
+            <div className="bg-surface-high rounded-2xl p-12 ghost-border text-center space-y-4">
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-on-surface-variant">
+                <Camera size={32} />
+              </div>
+              <h3 className="text-xl font-headline font-bold text-white">Nenhuma captação ativa</h3>
+              <p className="text-sm text-on-surface-variant max-w-xs mx-auto">
+                {captures.some(c => c.status === 'Confirmado' && isSameDay(parseISO(c.startDateTime), new Date())) 
+                  ? "Você tem captações agendadas para hoje. Inicie uma para começar."
+                  : "Não há captações agendadas para o dia de hoje."}
+              </p>
+            </div>
           )}
 
           <div className="space-y-6">
+            {finishedToday.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-label text-xs uppercase tracking-[0.3em] text-emerald-400 font-bold px-2">Captações Realizadas Hoje</h3>
+                <div className="space-y-4">
+                  {finishedToday.map((capture) => (
+                    <div 
+                      key={capture.id} 
+                      className="bg-emerald-500/5 rounded-2xl p-6 border border-emerald-500/10 flex items-center justify-between gap-6 opacity-60"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center justify-center bg-emerald-500/20 w-12 h-12 rounded-xl text-emerald-400">
+                          <CheckCircle2 size={24} />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-headline font-bold text-white line-through">{capture.title}</h4>
+                          <p className="text-xs text-on-surface-variant">Finalizado em: {capture.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between px-2">
               <h3 className="font-label text-xs uppercase tracking-[0.3em] text-on-surface-variant font-bold">Próximas Captações</h3>
               <div className="relative group">
@@ -491,6 +557,13 @@ export default function CaptureSector() {
                       <span className="text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-widest">Status: {capture.status}</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => updateCapture(capture.id, { status: 'Ativo Agora' })}
+                        className="p-3 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all"
+                        title="Iniciar Captação"
+                      >
+                        <Navigation size={18} />
+                      </button>
                       {capture.driveFolderId ? (
                         <a 
                           href={`https://drive.google.com/drive/folders/${capture.driveFolderId}`}
@@ -535,38 +608,49 @@ export default function CaptureSector() {
       {/* Real Map Section */}
       <section className="mt-12">
         <div className="bg-surface-low rounded-3xl overflow-hidden ghost-border h-[400px] relative group">
-          <GoogleMapReact
-            bootstrapURLKeys={{ key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '' }}
-            center={userLocation || { lat: -23.5505, lng: -46.6333 }}
-            defaultZoom={12}
-            options={{
-              styles: [
-                { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
-                { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-                { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
-                { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
-                { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
-                { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
-                { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] }
-              ]
-            }}
-          >
-            {userLocation && (
-              <AnyReactComponent
-                lat={userLocation.lat}
-                lng={userLocation.lng}
-                text="Sua Localização"
-              />
-            )}
-            {captures.map(c => c.lat && c.lng && (
-              <AnyReactComponent
-                key={c.id}
-                lat={c.lat}
-                lng={c.lng}
-                text={c.title}
-              />
-            ))}
-          </GoogleMapReact>
+          {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+            <GoogleMapReact
+              bootstrapURLKeys={{ 
+                key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+                libraries: ['places'] 
+              }}
+              center={userLocation || { lat: -23.5505, lng: -46.6333 }}
+              defaultZoom={12}
+              options={{
+                styles: [
+                  { "elementType": "geometry", "stylers": [{ "color": "#212121" }] },
+                  { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+                  { "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] },
+                  { "elementType": "labels.text.stroke", "stylers": [{ "color": "#212121" }] },
+                  { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#757575" }] },
+                  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000000" }] },
+                  { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#2c2c2c" }] }
+                ]
+              }}
+            >
+              {userLocation && (
+                <AnyReactComponent
+                  lat={userLocation.lat}
+                  lng={userLocation.lng}
+                  text="Sua Localização"
+                />
+              )}
+              {captures.map(c => c.lat && c.lng && (
+                <AnyReactComponent
+                  key={c.id}
+                  lat={c.lat}
+                  lng={c.lng}
+                  text={c.title}
+                />
+              ))}
+            </GoogleMapReact>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-white/5 text-on-surface-variant p-8 text-center">
+              <MapPin size={48} className="mb-4 opacity-20" />
+              <p className="text-sm font-bold uppercase tracking-widest">Chave de API do Maps Ausente</p>
+              <p className="text-xs mt-2 opacity-60">Configure a variável VITE_GOOGLE_MAPS_API_KEY nos Secrets para ativar o mapa.</p>
+            </div>
+          )}
           
           <div className="absolute bottom-8 left-8 z-10 glass-panel ghost-border px-8 py-6 rounded-2xl max-w-xs">
             <h4 className="font-headline font-bold text-xl text-white mb-2">Roteiro do Dia</h4>
@@ -615,13 +699,11 @@ export default function CaptureSector() {
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Localização (Endereço)</label>
-            <input 
-              required
-              type="text" 
-              value={newCapture.location}
-              onChange={e => setNewCapture({...newCapture, location: e.target.value})}
-              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-              placeholder="Ex: Av. Paulista, 1000"
+            <PlacesAutocomplete 
+              onSelect={(address, lat, lng) => {
+                setNewCapture(prev => ({ ...prev, location: address, lat, lng }));
+              }}
+              defaultValue={newCapture.location}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -672,5 +754,62 @@ export default function CaptureSector() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+function PlacesAutocomplete({ onSelect, defaultValue }: { onSelect: (address: string, lat: number, lng: number) => void, defaultValue: string }) {
+  const {
+    ready,
+    value,
+    suggestions: { status, data },
+    setValue,
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    requestOptions: {
+      /* Define search scope here */
+    },
+    debounce: 300,
+    defaultValue
+  });
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+  };
+
+  const handleSelect = async (address: string) => {
+    setValue(address, false);
+    clearSuggestions();
+
+    try {
+      const results = await getGeocode({ address });
+      const { lat, lng } = await getLatLng(results[0]);
+      onSelect(address, lat, lng);
+    } catch (error) {
+      console.log("Error: ", error);
+    }
+  };
+
+  return (
+    <Combobox onSelect={handleSelect}>
+      <ComboboxInput
+        value={value}
+        onChange={handleInput}
+        disabled={!ready}
+        className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
+        placeholder="Pesquisar endereço no Google Maps..."
+      />
+      <ComboboxPopover className="z-[1000] bg-surface-high border border-white/10 rounded-xl mt-2 overflow-hidden shadow-2xl">
+        <ComboboxList>
+          {status === "OK" &&
+            data.map(({ place_id, description }) => (
+              <ComboboxOption 
+                key={place_id} 
+                value={description} 
+                className="px-4 py-3 text-xs text-white hover:bg-white/5 cursor-pointer transition-colors"
+              />
+            ))}
+        </ComboboxList>
+      </ComboboxPopover>
+    </Combobox>
   );
 }

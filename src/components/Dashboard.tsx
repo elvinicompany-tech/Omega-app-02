@@ -16,7 +16,7 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export default function Dashboard() {
-  const { clients, leads, projects, userRole } = useData();
+  const { clients, leads, projects, userRole, showToast } = useData();
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportStatus, setReportStatus] = useState<'idle' | 'success'>('idle');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -372,7 +372,7 @@ export default function Dashboard() {
             ))}
           </div>
           <button 
-            onClick={() => alert('Carregando histórico completo de atividades...')}
+            onClick={() => showToast('Carregando histórico completo de atividades...', 'info')}
             className="mt-8 w-full py-3 text-[10px] font-label font-bold uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors border-t border-white/5 pt-6"
           >
             Ver todo o histórico

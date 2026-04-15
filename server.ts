@@ -17,10 +17,13 @@ async function startServer() {
   app.use(express.json());
 
   // Google OAuth Configuration
+  const REDIRECT_URI = `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`;
+  console.log('Google OAuth Redirect URI:', REDIRECT_URI);
+
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`
+    REDIRECT_URI
   );
 
   // API Routes
@@ -30,6 +33,7 @@ async function startServer() {
 
   // OAuth URL endpoint
   app.get('/api/auth/google/url', (req, res) => {
+    console.log('Generating Google Auth URL with Client ID:', process.env.GOOGLE_CLIENT_ID ? 'Present' : 'Missing');
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: [

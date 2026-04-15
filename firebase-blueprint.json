@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user profile with role and permissions",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["CEO", "RH", "Colaborador", "Vendedor"] },
+        "avatar": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Customer portfolio document",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "company": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "industry": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Onboarding", "Pausado"] },
+        "revenue": { "type": "string" },
+        "managerId": { "type": "string" },
+        "healthStatus": { "type": "string", "enum": ["green", "yellow", "red"] },
+        "confidentialData": {
+          "type": "object",
+          "properties": {
+            "emails": { "type": "string" },
+            "passwords": { "type": "string" },
+            "other": { "type": "string" }
+          }
+        }
+      },
+      "required": ["name", "status"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Sales transaction record",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "value": { "type": "number" },
+        "sellerId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "value", "sellerId", "date"]
+    },
+    "ManagerTask": {
+      "title": "ManagerTask",
+      "description": "Recurring tasks for client management",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "title": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "custom"] },
+        "completed": { "type": "boolean" },
+        "nextOccurrence": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "title", "frequency", "nextOccurrence"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Client data"
+    },
+    "/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Sales records"
+    },
+    "/managerTasks/{taskId}": {
+      "schema": "ManagerTask",
+      "description": "Tasks for managers"
+    }
+  }
+}

@@ -127,6 +127,8 @@ const Icons = {
 
 import { useData } from '../context/DataContext';
 import { UserRole } from '../types';
+import { signOut, auth } from '../lib/firebase';
+import { LogOut } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -135,39 +137,44 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeView, setActiveView }: LayoutProps) {
-  const { userRole, setUserRole } = useData();
+  const { userRole, setUserRole, user } = useData();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const handleLogout = () => {
+    signOut(auth);
+  };
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Icons.Dashboard },
+    { id: 'manager', label: 'Gestor', icon: Icons.CheckIn, roles: ['CEO', 'Vendedor'] },
     { id: 'sales', label: 'Vendas', icon: Icons.Store },
     { id: 'capture', label: 'Captação', icon: Icons.Camera },
     { id: 'production', label: 'Produção', icon: Icons.Movie },
     { id: 'results', label: 'Resultados', icon: Icons.Analytics },
     { id: 'clients', label: 'Clientes', icon: Icons.Groups },
     { id: 'strategy', label: 'Estratégia', icon: Icons.Target },
-  ];
+  ].filter(item => !item.roles || item.roles.includes(userRole));
 
   return (
     <div className="flex min-h-screen bg-surface-lowest text-on-surface font-body">
       {/* Sidebar (Desktop) */}
       <aside className="hidden lg:flex flex-col h-screen w-72 bg-surface py-8 px-6 gap-4 sticky top-0 rounded-r-[2rem] shadow-2xl shadow-white/5 z-40">
-        <div className="flex flex-col mb-8 px-2">
-          <span className="text-white uppercase tracking-[0.2em] font-label text-[10px] mb-6">ASSESSORIA OMEGA</span>
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-surface-highest overflow-hidden ghost-border">
-              <img 
-                className="w-full h-full object-cover" 
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCO1vcL3ZFFRKC_o-Sg61-cRVy765R_BChZYBvU4XXIlziwcPOysSJ-DvpGoYc9B73WG8Xm5g8Oa02UxL_ZkUsG20ymTF8nDPoIcQvMqNRpt4ge-BlJmgk6GIfJqRuUo53xCiay_wsnE0dmt4dWUMzl4yo9AopSnryCyFOGr8oNH7qDPlhwO2zvmJ0IiKpkuhJwi4UrCViOfK4DjNyeogU-Li2p7YCSGbHFlQSZmThoqiVgjCdfR9496pSXzCjilgFoj2U4Z1TWlnQ" 
-                alt="Profile"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-white font-bold leading-tight">ASSESSORIA OMEGA</span>
-              <span className="text-neutral-500 text-xs">Lead Strategist</span>
+          <div className="flex flex-col mb-8 px-2">
+            <span className="text-white uppercase tracking-[0.2em] font-label text-[10px] mb-6">ASSESSORIA OMEGA</span>
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-surface-highest overflow-hidden ghost-border">
+                <img 
+                  className="w-full h-full object-cover" 
+                  src={user?.photoURL || "https://lh3.googleusercontent.com/aida-public/AB6AXuCCO1vcL3ZFFRKC_o-Sg61-cRVy765R_BChZYBvU4XXIlziwcPOysSJ-DvpGoYc9B73WG8Xm5g8Oa02UxL_ZkUsG20ymTF8nDPoIcQvMqNRpt4ge-BlJmgk6GIfJqRuUo53xCiay_wsnE0dmt4dWUMzl4yo9AopSnryCyFOGr8oNH7qDPlhwO2zvmJ0IiKpkuhJwi4UrCViOfK4DjNyeogU-Li2p7YCSGbHFlQSZmThoqiVgjCdfR9496pSXzCjilgFoj2U4Z1TWlnQ"} 
+                  alt="Profile"
+                />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-white font-bold leading-tight truncate max-w-[120px]">{user?.displayName || "Usuário"}</span>
+                <span className="text-neutral-500 text-[10px] uppercase tracking-widest">{userRole}</span>
+              </div>
             </div>
           </div>
-        </div>
 
         <nav className="space-y-1">
           {navItems.map((item) => (
@@ -242,13 +249,17 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
                 </select>
                 <ChevronDown size={10} className="text-on-surface-variant -ml-3 pointer-events-none" />
               </div>
-              <button className="text-white p-2 hover:bg-white/5 rounded-full transition-colors">
-                <Icons.Notifications size={20} />
+              <button 
+                onClick={handleLogout}
+                className="text-neutral-500 hover:text-red-400 p-2 hover:bg-white/5 rounded-full transition-colors"
+                title="Sair"
+              >
+                <LogOut size={20} />
               </button>
               <div className="w-8 h-8 rounded-full border border-white/20 p-0.5 cursor-pointer active:scale-95 transition-transform overflow-hidden">
                 <img 
                   className="w-full h-full rounded-full object-cover" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCepsfdzlr_DKOpggHtohMXWd0kblEaZC9x484YhiUFdY5d4fOeqfezjv-KX68kYIVXXx35Ysn55TiPQx-J0hwkPgWlBRqREBKP8yNAO83Szlp83MjwFyYKASK7D9dlbeD6FkwdkOyETQqa5CV9D1ASywIll1wQ8mLVrLqx5LWA3ZeL8YauRLBNd_P5mlxz7mHpUlkaIaWCmHY8-vu_N-ZDhcQLZ_Z6e75Pfgr7iEnbVgqURWeZJzSlAt9p1RmumgYQhOQUcJEKQeBv" 
+                  src={user?.photoURL || "https://lh3.googleusercontent.com/aida-public/AB6AXuCepsfdzlr_DKOpggHtohMXWd0kblEaZC9x484YhiUFdY5d4fOeqfezjv-KX68kYIVXXx35Ysn55TiPQx-J0hwkPgWlBRqREBKP8yNAO83Szlp83MjwFyYKASK7D9dlbeD6FkwdkOyETQqa5CV9D1ASywIll1wQ8mLVrLqx5LWA3ZeL8YauRLBNd_P5mlxz7mHpUlkaIaWCmHY8-vu_N-ZDhcQLZ_Z6e75Pfgr7iEnbVgqURWeZJzSlAt9p1RmumgYQhOQUcJEKQeBv"} 
                   alt="User"
                 />
               </div>

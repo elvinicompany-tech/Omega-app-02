@@ -28,9 +28,10 @@ export default function Sales() {
     userRole, 
     sales, addSale, 
     sellers, addSeller, deleteSeller,
-    goals, addGoal,
+    goals, addGoal, updateGoal, getCurrentMonthGoal,
     notes, updateNote,
-    clients, addClient
+    clients, addClient, updateClient,
+    showToast
   } = useData();
 
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
@@ -39,6 +40,7 @@ export default function Sales() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'ranking' | 'history' | 'team'>('ranking');
   const [notification, setNotification] = useState<{ seller: string; value: number } | null>(null);
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
   
   const [newClient, setNewClient] = useState<Omit<Client, 'id' | 'createdAt'>>({
     name: '',
@@ -50,7 +52,13 @@ export default function Sales() {
     location: 'Brasil',
     contact: '',
     logo: 'https://picsum.photos/seed/company/200/200',
-    since: new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    since: new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
+    planDetails: {
+      included: '',
+      totalEdits: 0,
+      totalCaptures: 0,
+      workScope: ''
+    }
   });
 
   const handleAddClient = (e: React.FormEvent) => {
@@ -70,7 +78,13 @@ export default function Sales() {
       location: 'Brasil',
       contact: '',
       logo: 'https://picsum.photos/seed/company/200/200',
-      since: new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+      since: new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
+      planDetails: {
+        included: '',
+        totalEdits: 0,
+        totalCaptures: 0,
+        workScope: ''
+      }
     });
   };
   
@@ -94,7 +108,8 @@ export default function Sales() {
 
   const [newGoal, setNewGoal] = useState<Omit<Goal, 'id'>>({
     month: new Date().toISOString().slice(0, 7),
-    targetValue: 0
+    targetValue: 0,
+    renewalTarget: 0
   });
 
   const [userNote, setUserNote] = useState('');
@@ -109,10 +124,18 @@ export default function Sales() {
   };
 
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const currentGoal = goals.find(g => g.month === currentMonth)?.targetValue || 0;
+  const goalData = getCurrentMonthGoal();
+  const currentGoal = goalData.targetValue;
+  const renewalTarget = goalData.renewalTarget;
 
   const monthlySales = sales.filter(s => s.date.startsWith(currentMonth));
   const totalMonthlyRevenue = monthlySales.reduce((acc, s) => acc + s.value, 0);
+
+  const renewedClients = clients.filter(c => c.status === 'Ativo' && c.lastRenewalMonth === currentMonth);
+  const totalRenewalRevenue = renewedClients.reduce((acc, c) => {
+    const clean = c.revenue.replace(/[R$\.\/mês\s]/g, '').replace(',', '.');
+    return acc + (parseFloat(clean) || 0);
+  }, 0);
 
   const ranking = sellers.map(seller => {
     const sellerSales = monthlySales.filter(s => s.sellerId === seller.id);
@@ -122,17 +145,38 @@ export default function Sales() {
 
   const handleAddSale = (e: React.FormEvent) => {
     e.preventDefault();
-    const client = clients.find(c => c.id === newSale.clientId);
-    const seller = sellers.find(s => s.id === newSale.sellerId);
+    
+    let finalClientId = newSale.clientId;
+    let finalClientName = '';
+
+    // If new client form was used
+    if (showNewClientForm) {
+      const clientData = {
+        ...newClient,
+        revenue: `R$ ${newSale.value}/mês`,
+        createdAt: new Date().toISOString()
+      };
+      const createdClient = addClient(clientData);
+      finalClientId = createdClient.id;
+      finalClientName = createdClient.name;
+    } else {
+      const client = clients.find(c => c.id === newSale.clientId);
+      finalClientName = client?.name || 'Cliente Avulso';
+    }
+
+    // Auto-detect seller based on email or role
+    const seller = sellers.find(s => s.id === 'current-user') || sellers[0];
     
     addSale({
       ...newSale,
-      clientName: client?.name || 'Cliente Avulso',
-      sellerName: seller?.name || 'Vendedor Desconhecido',
+      clientId: finalClientId,
+      clientName: finalClientName,
+      sellerId: seller?.id || 'unknown',
+      sellerName: seller?.name || 'Vendedor',
       date: new Date().toISOString()
     });
     
-    // Trigger notification for everyone
+    // Trigger notification
     setNotification({ 
       seller: seller?.name || 'Vendedor', 
       value: newSale.value 
@@ -140,6 +184,7 @@ export default function Sales() {
     setTimeout(() => setNotification(null), 5000);
 
     setIsSaleModalOpen(false);
+    setShowNewClientForm(false);
     setNewSale({
       clientId: '',
       clientName: '',
@@ -232,12 +277,13 @@ export default function Sales() {
       </section>
 
       {/* Monthly Goal Progress */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 glass-panel p-8 rounded-2xl ghost-border">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Meta de Novos Negócios */}
+        <div className="glass-panel p-8 rounded-2xl ghost-border">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-              <h3 className="text-xl font-headline font-bold text-white">Meta Geral do Mês</h3>
-              <p className="text-sm text-on-surface-variant">Acompanhamento em tempo real das vendas globais</p>
+              <h3 className="text-xl font-headline font-bold text-white">Meta de Novos Negócios</h3>
+              <p className="text-sm text-on-surface-variant">Vendas de novos planos e projetos únicos</p>
             </div>
             <div className="text-right">
               <span className="text-3xl font-headline font-bold text-white">
@@ -257,54 +303,48 @@ export default function Sales() {
           </div>
           
           <div className="flex justify-between text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
-            <span>Progresso Global: {((totalMonthlyRevenue / (currentGoal || 1)) * 100).toFixed(1)}%</span>
+            <span>Progresso: {((totalMonthlyRevenue / (currentGoal || 1)) * 100).toFixed(1)}%</span>
             {totalMonthlyRevenue >= currentGoal ? (
-              <span className="text-amber-400 flex items-center gap-1"><Trophy size={12} /> Meta Global Atingida!</span>
+              <span className="text-amber-400 flex items-center gap-1"><Trophy size={12} /> Meta Atingida!</span>
             ) : (
               <span>Faltam {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.max(currentGoal - totalMonthlyRevenue, 0))}</span>
             )}
           </div>
         </div>
 
-        {/* Personal Goal (for Sellers) */}
-        {userRole === 'Vendedor' && (
-          <div className="glass-panel p-8 rounded-2xl ghost-border border-amber-400/20 bg-amber-400/5 flex flex-col justify-center">
-            <h3 className="text-sm font-label uppercase tracking-widest text-amber-400 mb-6 flex items-center gap-2">
-              <Star size={14} /> Sua Meta Individual
-            </h3>
-            <div className="space-y-4">
-              {(() => {
-                const mySales = monthlySales.filter(s => s.sellerId === 'current-user'); // Mock current user
-                const myRevenue = mySales.reduce((acc, s) => acc + s.value, 0);
-                const myGoal = sellers.length > 0 ? currentGoal / sellers.length : 0;
-                const progress = myGoal > 0 ? (myRevenue / myGoal) * 100 : 0;
-                
-                return (
-                  <>
-                    <div className="flex justify-between items-end">
-                      <p className="text-2xl font-headline font-bold text-white">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(myRevenue)}
-                      </p>
-                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">Alvo: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(myGoal)}</p>
-                    </div>
-                    <div className="h-4 bg-white/5 rounded-full overflow-hidden relative">
-                      <div 
-                        className={`h-full transition-all duration-1000 ${progress >= 100 ? 'bg-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'bg-white/40'}`}
-                        style={{ width: `${Math.min(progress, 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
-                        {progress.toFixed(1)}% concluído
-                      </p>
-                      {progress >= 100 && <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Batida! 🏆</span>}
-                    </div>
-                  </>
-                );
-              })()}
+        {/* Meta de Renovação */}
+        <div className="glass-panel p-8 rounded-2xl ghost-border border-emerald-500/20 bg-emerald-500/5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+              <h3 className="text-xl font-headline font-bold text-white">Meta de Renovação</h3>
+              <p className="text-sm text-on-surface-variant">Manutenção da carteira de clientes ativos</p>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-headline font-bold text-emerald-400">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRenewalRevenue)}
+              </span>
+              <span className="text-sm text-on-surface-variant ml-2">
+                / {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(renewalTarget)}
+              </span>
             </div>
           </div>
-        )}
+          
+          <div className="relative h-4 bg-white/5 rounded-full overflow-hidden mb-4">
+            <div 
+              className={`h-full transition-all duration-1000 ${totalRenewalRevenue >= renewalTarget ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-emerald-500/40'}`}
+              style={{ width: `${Math.min((totalRenewalRevenue / (renewalTarget || 1)) * 100, 100)}%` }}
+            ></div>
+          </div>
+          
+          <div className="flex justify-between text-[10px] font-label uppercase tracking-widest text-on-surface-variant">
+            <span>Retenção: {((totalRenewalRevenue / (renewalTarget || 1)) * 100).toFixed(1)}%</span>
+            {totalRenewalRevenue >= renewalTarget ? (
+              <span className="text-emerald-400 flex items-center gap-1"><CheckCircle2 size={12} /> Carteira 100% Renovada!</span>
+            ) : (
+              <span>Pendente: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.max(renewalTarget - totalRenewalRevenue, 0))}</span>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Main Content Tabs */}
@@ -497,7 +537,7 @@ export default function Sales() {
             </div>
             
             <button 
-              onClick={() => alert('Conectando ao Google Agenda...')}
+              onClick={() => showToast('Conectando ao Google Agenda...', 'info')}
               className="w-full py-2.5 rounded-xl bg-white/5 text-white text-[10px] font-label uppercase tracking-widest hover:bg-white/10 transition-colors"
             >
               Sincronizar Agenda
@@ -529,49 +569,112 @@ export default function Sales() {
 
       {/* Modal: Nova Venda */}
       <Modal isOpen={isSaleModalOpen} onClose={() => setIsSaleModalOpen(false)} title="Registrar Nova Venda">
-        <form onSubmit={handleAddSale} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Vendedor</label>
-              <select 
-                required
-                value={newSale.sellerId}
-                onChange={e => setNewSale({...newSale, sellerId: e.target.value})}
-                className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-              >
-                <option value="">Selecionar...</option>
-                {sellers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
+        <form onSubmit={handleAddSale} className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Cliente</label>
+              <button 
+                type="button"
+                onClick={() => setShowNewClientForm(!showNewClientForm)}
+                className="text-[10px] font-bold text-white bg-white/5 px-3 py-1 rounded-full hover:bg-white/10 transition-all"
+              >
+                {showNewClientForm ? 'Selecionar Existente' : '+ Novo Cliente'}
+              </button>
+            </div>
+
+            {!showNewClientForm ? (
               <select 
                 required
                 value={newSale.clientId}
                 onChange={e => setNewSale({...newSale, clientId: e.target.value})}
                 className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
               >
-                <option value="">Selecionar...</option>
+                <option value="">Selecionar Cliente...</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+            ) : (
+              <div className="space-y-4 p-4 bg-white/2 rounded-xl border border-white/5">
+                <input 
+                  required
+                  type="text" 
+                  placeholder="Nome do Cliente"
+                  value={newClient.name}
+                  onChange={e => setNewClient({...newClient, name: e.target.value})}
+                  className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <input 
+                    required
+                    type="text" 
+                    placeholder="WhatsApp"
+                    value={newClient.phone}
+                    onChange={e => setNewClient({...newClient, phone: e.target.value})}
+                    className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Empresa"
+                    value={newClient.company}
+                    onChange={e => setNewClient({...newClient, company: e.target.value})}
+                    className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="Setor (Ex: Tecnologia)"
+                  value={newClient.industry}
+                  onChange={e => setNewClient({...newClient, industry: e.target.value})}
+                  className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 border-t border-white/5 pt-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Detalhes do Plano</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] text-on-surface-variant">Qtd. Vídeos</span>
+                  <input 
+                    type="number"
+                    value={newClient.planDetails?.totalEdits || 0}
+                    onChange={e => setNewClient({
+                      ...newClient, 
+                      planDetails: { ...newClient.planDetails!, totalEdits: parseInt(e.target.value) }
+                    })}
+                    className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-on-surface-variant">Qtd. Captações</span>
+                  <input 
+                    type="number"
+                    value={newClient.planDetails?.totalCaptures || 0}
+                    onChange={e => setNewClient({
+                      ...newClient, 
+                      planDetails: { ...newClient.planDetails!, totalCaptures: parseInt(e.target.value) }
+                    })}
+                    className="w-full bg-surface-highest ghost-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+              <textarea 
+                placeholder="Serviços Oferecidos (Ex: Gestão de Tráfego, Edição de Reels...)"
+                value={newClient.planDetails?.included || ''}
+                onChange={e => setNewClient({
+                  ...newClient, 
+                  planDetails: { ...newClient.planDetails!, included: e.target.value }
+                })}
+                className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-sm text-white focus:outline-none h-20 resize-none"
+              />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">O que foi vendido?</label>
-            <input 
-              required
-              type="text" 
-              value={newSale.product}
-              onChange={e => setNewSale({...newSale, product: e.target.value})}
-              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
-              placeholder="Ex: Plano Premium Anual"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Valor da Venda</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Valor do Plano (Mensal)</label>
               <div className="relative">
                 <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" />
                 <input 
@@ -660,6 +763,16 @@ export default function Sales() {
               onChange={e => setNewGoal({...newGoal, targetValue: Number(e.target.value)})}
               className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none"
               placeholder="Ex: 50000"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Alvo de Renovação (Opcional)</label>
+            <input 
+              type="number" 
+              value={newGoal.renewalTarget || ''}
+              onChange={e => setNewGoal({...newGoal, renewalTarget: Number(e.target.value)})}
+              className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none"
+              placeholder="Deixe 0 para calcular automático"
             />
           </div>
           <button type="submit" className="w-full py-4 rounded-xl bg-white text-on-primary font-bold uppercase tracking-widest signature-glow mt-4">
