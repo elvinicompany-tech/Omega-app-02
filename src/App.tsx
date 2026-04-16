@@ -15,11 +15,13 @@ import Strategy from './components/Strategy';
 import Capture from './components/Capture';
 import ManagerView from './components/ManagerView';
 import Login from './components/Login';
+import PendingApproval from './components/PendingApproval';
+import UserManagement from './components/UserManagement';
 import Toast from './components/ui/Toast';
 import { DataProvider, useData } from './context/DataContext';
 
 function AppContent() {
-  const { user, loading, toast, hideToast } = useData();
+  const { user, userProfile, loading, toast, hideToast } = useData();
   const [activeView, setActiveView] = useState('dashboard');
 
   if (loading) {
@@ -32,6 +34,23 @@ function AppContent() {
 
   if (!user) {
     return <Login />;
+  }
+
+  if (userProfile && userProfile.status !== 'approved') {
+    return (
+      <>
+        <PendingApproval />
+        <AnimatePresence>
+          {toast && (
+            <Toast 
+              message={toast.message} 
+              type={toast.type} 
+              onClose={hideToast} 
+            />
+          )}
+        </AnimatePresence>
+      </>
+    );
   }
 
   const renderView = () => {
@@ -52,6 +71,8 @@ function AppContent() {
         return <Clients />;
       case 'strategy':
         return <Strategy />;
+      case 'users':
+        return <UserManagement />;
       default:
         return <Dashboard />;
     }

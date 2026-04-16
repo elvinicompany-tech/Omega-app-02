@@ -8,9 +8,11 @@
         "email": { "type": "string", "format": "email" },
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["CEO", "RH", "Colaborador", "Vendedor"] },
-        "avatar": { "type": "string" }
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["email", "role"]
+      "required": ["email", "role", "status"]
     },
     "Client": {
       "title": "Client",

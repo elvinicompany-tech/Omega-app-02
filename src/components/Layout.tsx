@@ -126,9 +126,9 @@ const Icons = {
 };
 
 import { useData } from '../context/DataContext';
-import { UserRole } from '../types';
+import { UserRole, Profile } from '../types';
 import { signOut, auth } from '../lib/firebase';
-import { LogOut } from 'lucide-react';
+import { LogOut, UserCog } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -137,7 +137,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, activeView, setActiveView }: LayoutProps) {
-  const { userRole, setUserRole, user } = useData();
+  const { userRole, setUserRole, user, userProfile } = useData();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
@@ -153,6 +153,7 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
     { id: 'results', label: 'Resultados', icon: Icons.Analytics },
     { id: 'clients', label: 'Clientes', icon: Icons.Groups },
     { id: 'strategy', label: 'Estratégia', icon: Icons.Target },
+    { id: 'users', label: 'Equipe', icon: UserCog, roles: ['CEO'] },
   ].filter(item => !item.roles || item.roles.includes(userRole));
 
   return (
@@ -170,8 +171,8 @@ export default function Layout({ children, activeView, setActiveView }: LayoutPr
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-white font-bold leading-tight truncate max-w-[120px]">{user?.displayName || "Usuário"}</span>
-                <span className="text-neutral-500 text-[10px] uppercase tracking-widest">{userRole}</span>
+                <span className="text-white font-bold leading-tight truncate max-w-[120px]">{userProfile?.name || user?.displayName || "Usuário"}</span>
+                <span className="text-neutral-500 text-[10px] uppercase tracking-widest">{userProfile?.role || userRole}</span>
               </div>
             </div>
           </div>

@@ -84,6 +84,17 @@ export interface Mission {
 }
 
 export type UserRole = 'CEO' | 'RH' | 'Colaborador' | 'Vendedor';
+export type UserStatus = 'pending' | 'approved' | 'rejected';
+
+export interface Profile {
+  uid: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  status: UserStatus;
+  avatar?: string;
+  createdAt: string;
+}
 
 export interface Sale {
   id: string;

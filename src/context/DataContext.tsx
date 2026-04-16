@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Lead, Project, Client, StrategyItem, OKR, Step, Capture, UserRole, Sale, Seller, Goal, Note, Mission, ClientMetricRecord, ManagerTask } from '../types';
+import { Lead, Project, Client, StrategyItem, OKR, Step, Capture, UserRole, Sale, Seller, Goal, Note, Mission, ClientMetricRecord, ManagerTask, Profile, UserStatus } from '../types';
 import { 
   auth, 
   db, 
@@ -24,6 +24,10 @@ interface DataContextType {
   user: FirebaseUser | null;
   loading: boolean;
   userRole: UserRole;
+  userProfile: Profile | null;
+  allUsers: Profile[];
+  updateUserProfile: (uid: string, updates: Partial<Profile>) => void;
+  deleteUserProfile: (uid: string) => void;
   setUserRole: (role: UserRole) => void;
   toast: { message: string; type: ToastType } | null;
   showToast: (message: string, type: ToastType) => void;
@@ -97,7 +101,9 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<UserRole>('CEO');
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
+  const [allUsers, setAllUsers] = useState<Profile[]>([]);
+  const [userRole, setUserRole] = useState<UserRole>('Colaborador');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -123,26 +129,34 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Fetch user role from Firestore
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           onSnapshot(userDocRef, (docSnap) => {
             if (docSnap.exists()) {
-              setUserRole(docSnap.data().role as UserRole);
+              const profile = docSnap.data() as Profile;
+              setUserProfile(profile);
+              setUserRole(profile.role);
             } else {
               const isAdmin = firebaseUser.email === 'viniciusbarbosasampaio71@gmail.com';
-              setDoc(userDocRef, {
-                email: firebaseUser.email,
-                name: firebaseUser.displayName,
+              const newProfile: Omit<Profile, 'uid'> = {
+                email: firebaseUser.email || '',
+                name: firebaseUser.displayName || 'Usuário',
                 role: isAdmin ? 'CEO' : 'Colaborador',
-                avatar: firebaseUser.photoURL
-              });
+                status: isAdmin ? 'approved' : 'pending',
+                avatar: firebaseUser.photoURL || undefined,
+                createdAt: new Date().toISOString()
+              };
+              setDoc(userDocRef, newProfile);
+              setUserProfile({ ...newProfile, uid: firebaseUser.uid });
               if (isAdmin) setUserRole('CEO');
             }
           });
         } catch (error) {
-          console.error("Error fetching user role:", error);
+          console.error("Error fetching user profile:", error);
         }
+      } else {
+        setUserProfile(null);
+        setUserRole('Colaborador');
       }
       setLoading(false);
     });
@@ -151,9 +165,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // Real-time Listeners
   useEffect(() => {
-    if (!user) return;
+    if (!user || !userProfile || userProfile.status !== 'approved') {
+      // If user is CEO, they can still see the users list to approve them
+      if (user && userRole === 'CEO') {
+        const unsub = onSnapshot(collection(db, 'users'), (snap) => {
+          setAllUsers(snap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as Profile)));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
+        return () => unsub();
+      }
+      return;
+    }
 
     const unsubscribes = [
+      onSnapshot(collection(db, 'users'), (snap) => {
+        setAllUsers(snap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as Profile)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'users')),
       onSnapshot(collection(db, 'clients'), (snap) => {
         setClients(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Client)));
       }, (err) => handleFirestoreError(err, OperationType.LIST, 'clients')),
@@ -404,10 +430,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .catch(err => handleFirestoreError(err, OperationType.DELETE, `managerTasks/${id}`));
   };
 
+  const updateUserProfile = (uid: string, updates: Partial<Profile>) => {
+    updateDoc(doc(db, 'users', uid), updates)
+      .catch(err => handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`));
+  };
+
+  const deleteUserProfile = (uid: string) => {
+    deleteDoc(doc(db, 'users', uid))
+      .catch(err => handleFirestoreError(err, OperationType.DELETE, `users/${uid}`));
+  };
+
   return (
     <DataContext.Provider value={{
       user, loading,
       userRole, setUserRole,
+      userProfile, allUsers, updateUserProfile, deleteUserProfile,
       toast, showToast, hideToast,
       leads, addLead, moveLead, deleteLead,
       projects, addProject, updateProjectProgress, updateProject, deleteProject,
