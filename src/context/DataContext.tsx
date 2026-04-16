@@ -12,6 +12,7 @@ import {
   deleteDoc, 
   addDoc,
   query,
+  where,
   orderBy,
   OperationType,
   handleFirestoreError
@@ -34,9 +35,9 @@ interface DataContextType {
   
   projects: Project[];
   addProject: (project: Omit<Project, 'id'>) => void;
-  updateProjectProgress: (id: number, progress: number) => void;
-  updateProject: (id: number, updates: Partial<Project>) => void;
-  deleteProject: (id: number) => void;
+  updateProjectProgress: (id: string, progress: number) => void;
+  updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
   
   clients: Client[];
   addClient: (client: Omit<Client, 'id'>) => Client;
@@ -159,55 +160,81 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       onSnapshot(collection(db, 'sales'), (snap) => {
         setSales(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale)));
-      }),
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'sales')),
 
       onSnapshot(collection(db, 'managerTasks'), (snap) => {
         setManagerTasks(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ManagerTask)));
-      }),
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'managerTasks')),
 
       onSnapshot(collection(db, 'sellers'), (snap) => {
         setSellers(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Seller)));
-      }),
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'sellers')),
 
       onSnapshot(collection(db, 'goals'), (snap) => {
         setGoals(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Goal)));
-      }),
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'goals')),
 
       onSnapshot(collection(db, 'clientMetrics'), (snap) => {
         setClientMetrics(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ClientMetricRecord)));
-      })
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'clientMetrics')),
+
+      onSnapshot(collection(db, 'leads'), (snap) => {
+        setLeads(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Lead)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'leads')),
+
+      onSnapshot(collection(db, 'projects'), (snap) => {
+        setProjects(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Project)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'projects')),
+
+      onSnapshot(collection(db, 'captures'), (snap) => {
+        setCaptures(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Capture)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'captures')),
+
+      onSnapshot(collection(db, 'missions'), (snap) => {
+        setMissions(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Mission)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'missions')),
+
+      onSnapshot(query(collection(db, 'notes'), where('userId', '==', user.uid)), (snap) => {
+        setNotes(snap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Note)));
+      }, (err) => handleFirestoreError(err, OperationType.LIST, 'notes'))
     ];
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user]);
 
   const addLead = (lead: Omit<Lead, 'id'>) => {
-    // For now keeping leads in memory or implement Firestore if needed
-    setLeads([...leads, { ...lead, id: Math.random().toString(36).substr(2, 9) }]);
+    addDoc(collection(db, 'leads'), lead)
+      .catch(err => handleFirestoreError(err, OperationType.CREATE, 'leads'));
   };
 
   const moveLead = (id: string, stage: Lead['stage']) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, stage } : l));
+    updateDoc(doc(db, 'leads', id), { stage })
+      .catch(err => handleFirestoreError(err, OperationType.UPDATE, `leads/${id}`));
   };
 
   const deleteLead = (id: string) => {
-    setLeads(leads.filter(l => l.id !== id));
+    deleteDoc(doc(db, 'leads', id))
+      .catch(err => handleFirestoreError(err, OperationType.DELETE, `leads/${id}`));
   };
 
   const addProject = (project: Omit<Project, 'id'>) => {
-    setProjects([...projects, { ...project, id: projects.length + 1, type: project.type || 'Único' }]);
+    addDoc(collection(db, 'projects'), project)
+      .catch(err => handleFirestoreError(err, OperationType.CREATE, 'projects'));
   };
 
-  const updateProjectProgress = (id: number, progress: number) => {
-    setProjects(projects.map(p => p.id === id ? { ...p, progress } : p));
+  const updateProjectProgress = (id: string, progress: number) => {
+    updateDoc(doc(db, 'projects', id), { progress })
+      .catch(err => handleFirestoreError(err, OperationType.UPDATE, `projects/${id}`));
   };
 
-  const updateProject = (id: number, updates: Partial<Project>) => {
-    setProjects(projects.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updateProject = (id: string, updates: Partial<Project>) => {
+    updateDoc(doc(db, 'projects', id), updates)
+      .catch(err => handleFirestoreError(err, OperationType.UPDATE, `projects/${id}`));
   };
 
-  const deleteProject = (id: number) => {
-    setProjects(projects.filter(p => p.id !== id));
+  const deleteProject = (id: string) => {
+    deleteDoc(doc(db, 'projects', id))
+      .catch(err => handleFirestoreError(err, OperationType.DELETE, `projects/${id}`));
   };
 
   const addClient = (client: Omit<Client, 'id'>) => {
@@ -252,15 +279,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addCapture = (capture: Omit<Capture, 'id'>) => {
-    setCaptures([...captures, { ...capture, id: Math.random().toString(36).substr(2, 9) }]);
+    addDoc(collection(db, 'captures'), capture)
+      .catch(err => handleFirestoreError(err, OperationType.CREATE, 'captures'));
   };
 
   const updateCapture = (id: string, updates: Partial<Capture>) => {
-    setCaptures(captures.map(c => c.id === id ? { ...c, ...updates } : c));
+    updateDoc(doc(db, 'captures', id), updates)
+      .catch(err => handleFirestoreError(err, OperationType.UPDATE, `captures/${id}`));
   };
 
   const deleteCapture = (id: string) => {
-    setCaptures(captures.filter(c => c.id !== id));
+    deleteDoc(doc(db, 'captures', id))
+      .catch(err => handleFirestoreError(err, OperationType.DELETE, `captures/${id}`));
   };
 
   const addSale = (sale: Omit<Sale, 'id'>) => {
@@ -315,30 +345,35 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateNote = (userId: string, content: string) => {
-    // Notes logic can be migrated to Firestore too
     const existing = notes.find(n => n.userId === userId);
     if (existing) {
-      setNotes(notes.map(n => n.userId === userId ? { ...n, content, updatedAt: new Date().toISOString() } : n));
+      updateDoc(doc(db, 'notes', existing.id), { content, updatedAt: new Date().toISOString() })
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, `notes/${existing.id}`));
     } else {
-      setNotes([...notes, { id: Math.random().toString(36).substr(2, 9), userId, content, updatedAt: new Date().toISOString() }]);
+      addDoc(collection(db, 'notes'), { userId, content, updatedAt: new Date().toISOString() })
+        .catch(err => handleFirestoreError(err, OperationType.CREATE, 'notes'));
     }
   };
 
   const addMission = (mission: Omit<Mission, 'id' | 'createdAt' | 'completed'>) => {
-    setMissions([...missions, { 
+    addDoc(collection(db, 'missions'), { 
       ...mission, 
-      id: Math.random().toString(36).substr(2, 9), 
       createdAt: new Date().toISOString(),
       completed: false 
-    }]);
+    }).catch(err => handleFirestoreError(err, OperationType.CREATE, 'missions'));
   };
 
   const toggleMission = (id: string) => {
-    setMissions(missions.map(m => m.id === id ? { ...m, completed: !m.completed } : m));
+    const mission = missions.find(m => m.id === id);
+    if (mission) {
+      updateDoc(doc(db, 'missions', id), { completed: !mission.completed })
+        .catch(err => handleFirestoreError(err, OperationType.UPDATE, `missions/${id}`));
+    }
   };
 
   const deleteMission = (id: string) => {
-    setMissions(missions.filter(m => m.id !== id));
+    deleteDoc(doc(db, 'missions', id))
+      .catch(err => handleFirestoreError(err, OperationType.DELETE, `missions/${id}`));
   };
 
   const addClientMetric = (metric: Omit<ClientMetricRecord, 'id'>) => {

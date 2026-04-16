@@ -29,7 +29,7 @@ export interface Lead {
 }
 
 export interface Project {
-  id: number;
+  id: string;
   title: string;
   status: string;
   progress: number;

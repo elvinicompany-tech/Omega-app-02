@@ -18,7 +18,7 @@ import {
   UserPlus,
   BellRing
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useData } from '../context/DataContext';
 import Modal from './ui/Modal';
 import { Sale, Seller, Goal, Client } from '../types';

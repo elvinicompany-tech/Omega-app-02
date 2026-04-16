@@ -18,11 +18,11 @@ import {
   Download,
   ChevronRight
 } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
 import { useData } from '../context/DataContext';
 import { Client, ClientMetricRecord } from '../types';
 import Modal from './ui/Modal';
 import { format, parseISO } from 'date-fns';
+import { generateInsight } from '../services/aiService';
 
 export default function Strategy() {
   const { clients, clientMetrics, addClientMetric, userRole } = useData();
@@ -72,18 +72,14 @@ export default function Strategy() {
     }
     setIsLoadingInsight(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Análise estratégica para o cliente ${selectedClient?.name}:
       - Conversão: ${currentMetrics.metrics.conversionRate}%
       - Conversas: ${currentMetrics.metrics.conversationsStarted}
       - Otimizações: ${currentMetrics.optimizationsDone}
       Forneça 2 recomendações táticas curtas.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
-      setAiInsight(response.text || 'Foco em escala horizontal de públicos.');
+      const text = await generateInsight(prompt);
+      setAiInsight(text);
     } catch (error) {
       setAiInsight('Otimizar criativos de topo de funil para reduzir o CPM.');
     } finally {

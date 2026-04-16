@@ -608,12 +608,8 @@ export default function CaptureSector() {
       {/* Real Map Section */}
       <section className="mt-12">
         <div className="bg-surface-low rounded-3xl overflow-hidden ghost-border h-[400px] relative group">
-          {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+          {import.meta.env.VITE_GOOGLE_MAPS_API_KEY && import.meta.env.VITE_GOOGLE_MAPS_API_KEY.length > 20 && !import.meta.env.VITE_GOOGLE_MAPS_API_KEY.includes('MY_') ? (
             <GoogleMapReact
-              bootstrapURLKeys={{ 
-                key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-                libraries: ['places'] 
-              }}
               center={userLocation || { lat: -23.5505, lng: -46.6333 }}
               defaultZoom={12}
               options={{

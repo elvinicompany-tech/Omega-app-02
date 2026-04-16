@@ -58,7 +58,7 @@ import {
   Store, 
   Stethoscope
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 // Re-mapping some icons to match the Material Symbols used in the HTML
 const Icons = {
