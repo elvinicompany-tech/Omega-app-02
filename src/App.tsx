@@ -26,8 +26,9 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-lowest flex items-center justify-center">
+      <div className="min-h-screen bg-surface-lowest flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-white/10 border-t-white rounded-full animate-spin" />
+        <p className="text-white/40 text-xs font-label uppercase tracking-widest animate-pulse">Carregando Sistema...</p>
       </div>
     );
   }
