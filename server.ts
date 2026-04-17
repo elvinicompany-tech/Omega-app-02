@@ -16,6 +16,8 @@ async function startServer() {
 
   app.use(express.json());
 
+  console.log(`Starting server in ${process.env.NODE_ENV || 'development'} mode`);
+
   // Google OAuth Configuration
   const REDIRECT_URI = `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`;
   console.log('Google OAuth Redirect URI:', REDIRECT_URI);

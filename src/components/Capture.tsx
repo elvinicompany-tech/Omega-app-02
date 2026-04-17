@@ -31,14 +31,6 @@ import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
 } from "use-places-autocomplete";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxPopover,
-  ComboboxList,
-  ComboboxOption,
-} from "@reach/combobox";
-import "@reach/combobox/styles.css";
 import { 
   format, 
   addMonths, 
@@ -761,9 +753,7 @@ function PlacesAutocomplete({ onSelect, defaultValue }: { onSelect: (address: st
     setValue,
     clearSuggestions,
   } = usePlacesAutocomplete({
-    requestOptions: {
-      /* Define search scope here */
-    },
+    requestOptions: {},
     debounce: 300,
     defaultValue
   });
@@ -786,26 +776,28 @@ function PlacesAutocomplete({ onSelect, defaultValue }: { onSelect: (address: st
   };
 
   return (
-    <Combobox onSelect={handleSelect}>
-      <ComboboxInput
+    <div className="relative">
+      <input
         value={value}
         onChange={handleInput}
         disabled={!ready}
         className="w-full bg-surface-highest ghost-border rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/20"
         placeholder="Pesquisar endereço no Google Maps..."
       />
-      <ComboboxPopover className="z-[1000] bg-surface-high border border-white/10 rounded-xl mt-2 overflow-hidden shadow-2xl">
-        <ComboboxList>
-          {status === "OK" &&
-            data.map(({ place_id, description }) => (
-              <ComboboxOption 
-                key={place_id} 
-                value={description} 
-                className="px-4 py-3 text-xs text-white hover:bg-white/5 cursor-pointer transition-colors"
-              />
-            ))}
-        </ComboboxList>
-      </ComboboxPopover>
-    </Combobox>
+      {status === "OK" && (
+        <div className="absolute z-[1000] w-full bg-surface-high border border-white/10 rounded-xl mt-2 overflow-hidden shadow-2xl max-h-60 overflow-y-auto">
+          {data.map(({ place_id, description }) => (
+            <button
+              key={place_id}
+              type="button"
+              onClick={() => handleSelect(description)}
+              className="w-full text-left px-4 py-3 text-xs text-white hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 last:border-0"
+            >
+              {description}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

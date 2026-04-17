@@ -150,7 +150,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
               setUserProfile({ ...newProfile, uid: firebaseUser.uid });
               if (isAdmin) setUserRole('CEO');
             }
-          });
+          }, (err) => handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`));
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
@@ -226,7 +226,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     ];
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [user]);
+  }, [user, userProfile, userRole]);
 
   const addLead = (lead: Omit<Lead, 'id'>) => {
     addDoc(collection(db, 'leads'), lead)
