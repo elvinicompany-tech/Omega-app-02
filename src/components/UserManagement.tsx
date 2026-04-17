@@ -14,33 +14,19 @@ import {
   UserCog,
   Trash2
 } from 'lucide-react';
-import { Profile, UserRole, UserStatus } from '../types';
+import { Profile, UserRole } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function UserManagement() {
   const { allUsers, updateUserProfile, deleteUserProfile, showToast } = useData();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<UserStatus | 'all'>('all');
 
   const filteredUsers = allUsers.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || u.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
-
-  const handleApprove = (user: Profile, role: UserRole) => {
-    updateUserProfile(user.uid, { status: 'approved', role });
-    showToast(`Usuário ${user.name} aprovado como ${role}!`, 'success');
-  };
-
-  const handleReject = (user: Profile) => {
-    if (confirm(`Tem certeza que deseja negar o acesso de ${user.name}?`)) {
-      updateUserProfile(user.uid, { status: 'rejected' });
-      showToast(`Acesso negado para ${user.name}.`, 'info');
-    }
-  };
 
   const handleDelete = (user: Profile) => {
     if (confirm(`Excluir permanentemente o perfil de ${user.name}?`)) {
@@ -48,8 +34,6 @@ export default function UserManagement() {
       showToast(`Perfil excluído.`, 'error');
     }
   };
-
-  const pendingCount = allUsers.filter(u => u.status === 'pending').length;
 
   return (
     <div className="space-y-8 pb-20">
@@ -61,21 +45,11 @@ export default function UserManagement() {
         
         <div className="bg-white/5 rounded-2xl px-6 py-4 border border-white/10 flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
-              <Clock size={20} />
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Pendentes</p>
-              <p className="text-xl font-headline font-bold text-white">{pendingCount}</p>
-            </div>
-          </div>
-          <div className="w-px h-8 bg-white/10" />
-          <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
               <Users size={20} />
             </div>
             <div>
-              <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Total</p>
+              <p className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Equipe Total</p>
               <p className="text-xl font-headline font-bold text-white">{allUsers.length}</p>
             </div>
           </div>
@@ -94,22 +68,6 @@ export default function UserManagement() {
               className="w-full bg-surface-lowest border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-white/30 transition-all"
             />
           </div>
-          
-          <div className="flex gap-2">
-            {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  filterStatus === s 
-                  ? 'bg-white text-on-primary' 
-                  : 'bg-white/5 text-on-surface-variant hover:bg-white/10'
-                }`}
-              >
-                {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'approved' ? 'Aprovados' : 'Negados'}
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -117,8 +75,7 @@ export default function UserManagement() {
             <thead>
               <tr className="border-b border-white/5 pb-4">
                 <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4">Usuário</th>
-                <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4">Cargo Atual</th>
-                <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4">Status</th>
+                <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4">Cargo</th>
                 <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4">Entrada</th>
                 <th className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold pb-4 px-4 text-right">Ações</th>
               </tr>
@@ -156,50 +113,13 @@ export default function UserManagement() {
                     </span>
                   </td>
                   <td className="py-6 px-4">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${
-                      user.status === 'approved' 
-                      ? 'text-emerald-400' 
-                      : user.status === 'pending'
-                      ? 'text-amber-400'
-                      : 'text-red-400'
-                    }`}>
-                      <div className={`w-1 h-1 rounded-full ${
-                        user.status === 'approved' ? 'bg-emerald-400' : user.status === 'pending' ? 'bg-amber-400' : 'bg-red-400'
-                      }`} />
-                      {user.status === 'approved' ? 'Aprovado' : user.status === 'pending' ? 'Pendente' : 'Negado'}
-                    </span>
-                  </td>
-                  <td className="py-6 px-4">
                     <p className="text-[10px] text-on-surface-variant">
                       {user.createdAt ? format(new Date(user.createdAt), "dd 'de' MMM", { locale: ptBR }) : 'N/A'}
                     </p>
                   </td>
                   <td className="py-6 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {user.status === 'pending' && (
-                        <>
-                          <div className="flex bg-white/5 rounded-xl p-1 border border-white/10">
-                            {(['Colaborador', 'Vendedor', 'RH'] as UserRole[]).map(role => (
-                              <button
-                                key={role}
-                                onClick={() => handleApprove(user, role)}
-                                className="px-3 py-1.5 rounded-lg text-[9px] font-bold text-white hover:bg-white/10 transition-colors uppercase"
-                              >
-                                {role}
-                              </button>
-                            ))}
-                          </div>
-                          <button 
-                            onClick={() => handleReject(user)}
-                            className="p-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-                            title="Negar Acesso"
-                          >
-                            <UserX size={16} />
-                          </button>
-                        </>
-                      )}
-                      
-                      {user.status !== 'pending' && user.role !== 'CEO' && (
+                      {user.role !== 'CEO' && (
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <select 
                             value={user.role}

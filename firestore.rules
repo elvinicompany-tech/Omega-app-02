@@ -37,8 +37,7 @@ service cloud.firestore {
     }
     
     function isApproved() {
-      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isAuthenticated() && exists(userPath) && get(userPath).data.status == 'approved';
+      return isAuthenticated();
     }
     
     function getUserData() {
@@ -47,7 +46,7 @@ service cloud.firestore {
     }
 
     function isRH() {
-      return isApproved() && getUserData().role == 'RH';
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'RH';
     }
     
     function getUserRole() {
@@ -56,7 +55,7 @@ service cloud.firestore {
     }
     
     function isManager(clientId) {
-      return isApproved() && (isCEO() || resource.data.managerId == request.auth.uid);
+      return isAuthenticated() && (isCEO() || (exists(/databases/$(database)/documents/clients/$(clientId)) && get(/databases/$(database)/documents/clients/$(clientId)).data.managerId == request.auth.uid));
     }
 
     function isValidUser(data) {
@@ -74,19 +73,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow list: if isCEO();
-      allow get: if isAuthenticated() && (isCEO() || request.auth.uid == userId);
+      allow list: if isAuthenticated();
+      allow get: if isAuthenticated();
       
-      // Allow new users to create their pending profiles
+      // Allow new users to create their profiles
       allow create: if isAuthenticated() && 
                       request.auth.uid == userId && 
-                      isValidUser(request.resource.data) && 
-                      request.resource.data.status == 'pending' && 
-                      request.resource.data.role == 'Colaborador';
+                      isValidUser(request.resource.data);
       
       // CEO can update anyone (role/status)
-      // Users can update their own non-sensitive info if approved (optional, but keep it secure)
-      allow update: if isCEO() || (isAuthenticated() && request.auth.uid == userId && request.resource.data.role == resource.data.role && request.resource.data.status == resource.data.status);
+      allow update: if isCEO() || (isAuthenticated() && request.auth.uid == userId);
       
       allow delete: if isCEO();
     }

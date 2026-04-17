@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Lead, Project, Client, StrategyItem, OKR, Step, Capture, UserRole, Sale, Seller, Goal, Note, Mission, ClientMetricRecord, ManagerTask, Profile, UserStatus } from '../types';
+import { Lead, Project, Client, StrategyItem, OKR, Step, Capture, UserRole, Sale, Seller, Goal, Note, Mission, ClientMetricRecord, ManagerTask, Profile } from '../types';
 import { 
   auth, 
   db, 
@@ -142,7 +142,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                 email: firebaseUser.email || '',
                 name: firebaseUser.displayName || 'Usuário',
                 role: isAdmin ? 'CEO' : 'Colaborador',
-                status: isAdmin ? 'approved' : 'pending',
+                status: 'approved',
                 avatar: firebaseUser.photoURL || undefined,
                 createdAt: new Date().toISOString()
               };
@@ -165,16 +165,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // Real-time Listeners
   useEffect(() => {
-    if (!user || !userProfile || userProfile.status !== 'approved') {
-      // If user is CEO, they can still see the users list to approve them
-      if (user && userRole === 'CEO') {
-        const unsub = onSnapshot(collection(db, 'users'), (snap) => {
-          setAllUsers(snap.docs.map(doc => ({ ...doc.data(), uid: doc.id } as Profile)));
-        }, (err) => handleFirestoreError(err, OperationType.LIST, 'users'));
-        return () => unsub();
-      }
-      return;
-    }
+    if (!user || !userProfile) return;
 
     const unsubscribes = [
       onSnapshot(collection(db, 'users'), (snap) => {
